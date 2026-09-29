@@ -211,7 +211,14 @@ def disulfides(key, value):
 	if '[' in key:
 		name_key, instance = key.split("[")
 		if 'A' not in instance and 'B' not in instance:
-			instance = list(map(int, (key.split("[", 1)[1][:-1].split(","))))
+			if 'Linker' not in instance:
+				instance = list(map(int, (key.split("[", 1)[1][:-1].split(","))))
+			else:
+				if instance[0].isnumeric():
+					instance = [int(instance[0]), instance[2:len(instance)-1]] #makes it into [first number instance, linker(linker numbers) while excluding the comma and final square bracket]
+				else:
+					instance = [int(instance[-2]), instance[:len(instance)-3]] #opposite of if the non-linker instance is first
+				print(f'linker file: {file_name}')
 		if len(instance)>1:
 			partner_inst = instance[1:]
 			instance = instance[0]
@@ -230,6 +237,7 @@ def disulfides(key, value):
 	elif 'DisulfidesInter' in key:
 		chain = 'H' if ('H' in key and 'L' not in key) else 'L'
 		partner_chain = 'L' if ('L' in key and 'H' not in key) else 'H'
+
 	else:
 		bonds = value.split()
 		for bond_pair in bonds:
@@ -247,7 +255,10 @@ def disulfides(key, value):
 	for bond_pair in bonds:
 		pair = bond_pair.split('-')
 
-		disulfides_dic.append({'ThisChain': chain, 'Instance': instance, 'Residue': int(pair[0]), 'PartnerChain': partner_chain, 'PartnerResidue': int(pair[1]), 'PartnerInstances': partner_inst})
+		if len(pair)==1:
+			disulfides_dic.append({'ThisChain': chain, 'Instance': instance, 'Residue': int(pair[0]) if pair[0].isnumeric() else pair[0], 'PartnerChain': partner_chain, 'PartnerResidue': int(pair[0]) if pair[0].isnumeric() else pair[0], 'PartnerInstances': partner_inst})
+		else:
+			disulfides_dic.append({'ThisChain': chain, 'Instance': instance, 'Residue': int(pair[0]), 'PartnerChain': partner_chain, 'PartnerResidue': int(pair[1]) if pair[1].isnumeric() else pair[1], 'PartnerInstances': partner_inst})
 
 	if new_json.get(dis_key):
 		existing_dic = new_json[dis_key]
@@ -259,7 +270,7 @@ def disulfides(key, value):
 
 
 
-folder_path = '' #insert path here
+folder_path = '/Users/emmawrenn/Downloads/annotations_20260917' #insert path here
 directory = 'json_files'
 new_folder = 'cleaned_json_files'
 os.makedirs(new_folder, exist_ok=True)
@@ -283,7 +294,6 @@ for entry in os.scandir(folder_path):
 					request = line[0]
 					name = line[1:]
 					name = ' '.join(name)
-					print(name)				
 					name_json.append({'Request': request, 'Name': name})
 
 				request_to_name = {
@@ -423,7 +433,7 @@ for entry in os.scandir(folder_path):
 					elif 'ConfirmedPTM' in key:
 						ptm_key, ptm_val = confirmed_ptm(key, value)
 						new_json[ptm_key] = ptm_val
-					elif 'Disulfides' in key:
+					elif 'Disulfide' in key:
 						dis_key, dis_val = disulfides(key, value)
 						new_json[dis_key] = dis_val
 					elif ' Chain' in key or 'Chain[' in key:
@@ -453,23 +463,29 @@ for entry in os.scandir(folder_path):
 						if '[' in key:
 							name_key, instance = key.split("[")
 							instances = instance[:-1].strip().split(",")
-							seq = ['NONE'] if value.strip()=='NONE' else [int(val) for val in value.split()]
+							if value.strip()=='NONE' or '??' in value.strip():
+								seq = ['NONE'] if value.strip()=='NONE' else ['Unknown']
+							else:
+								seq = [int(val) for val in value.split()]
 							if seq == []:
 								seq = ['NONE']
 							new_json[name_key] = {'Positions': seq, 'Instances': [int(i) for i in instances]}
 						else:
-							seq = ['NONE'] if value.strip()=='NONE' else [int(val) for val in value.split()]
+							if 'partial' in value:
+								seq = value.strip().split()
+							else:
+								seq = ['NONE'] if value.strip()=='NONE' else [int(val) for val in value.split()]
 							new_json[key] = {'Sequence': seq, 'Instances': [0]}
-					elif 'Linker' in key:
+					elif 'Linker' in key and 'Disulfide' not in key:
 						if '[' in key:
 							name_key, instance = key.split("[")
 							instances = instance[:-1].strip().split(",")
 
 							linker_key = name_key
-							linker_val = {'Residues': value, 'Instances': [int(i) for i in instances]}
+							linker_val = {'Residues': value.strip(), 'Instances': [int(i) for i in instances]}
 						else:
 							linker_key = key
-							linker_val = {'Residues': value, 'Instances': [0]}
+							linker_val = {'Residues': value.strip(), 'Instances': [0]}
 						new_json[linker_key] = linker_val
 					elif 'Type' in key:
 						if not '[' in key:
