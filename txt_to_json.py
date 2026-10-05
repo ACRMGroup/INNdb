@@ -270,7 +270,7 @@ def disulfides(key, value):
 
 
 
-folder_path = '/Users/emmawrenn/Downloads/annotations_20260917' #insert path here
+folder_path = '' #insert path here
 directory = 'json_files'
 new_folder = 'cleaned_json_files'
 os.makedirs(new_folder, exist_ok=True)
@@ -373,8 +373,17 @@ for entry in os.scandir(folder_path):
 
 
 					elif 'Fusion' in key and 'Protein' not in key:
-						fusion_key, fusion_val = fusion(key, value)
-						new_json[fusion_key] = fusion_val
+						fusion_vals = [int(val) for val in value.split()]
+						if len(fusion_vals)==2:
+							new_json[f'{key.strip()}[{fusion_vals[0]}]'] = [fusion_vals[1]]
+						else:
+							for i in range(len(fusion_vals)):
+								if i ==0:
+									new_json[f'{key.strip()}[{fusion_vals[0]}]'] = [fusion_vals[1]]
+								elif i<len(fusion_vals)-1:
+									new_json[f'{key.strip()}[{fusion_vals[i]}]'] = [fusion_vals[i-1], fusion_vals[i+1]]
+								else:
+									new_json[f'{key.strip()}[{fusion_vals[i]}]'] = [fusion_vals[i-1]]
 					elif 'Note' in key:
 						if 'Note' in records[record_counter-1]:
 							i = 2
